@@ -20,7 +20,11 @@ class VideoInput extends Component {
       descriptors: null,
       faceMatcher: null,
       match: null,
-      facingMode: null
+      facingMode: null,
+      second: 0,
+      condition: "",
+      realPerson: "none",
+      type: "",
     };
   }
 
@@ -28,6 +32,21 @@ class VideoInput extends Component {
     await loadModels();
     this.setState({ faceMatcher: await createMatcher(JSON_PROFILE['faceId']) });
     this.setInputDevice();
+
+    const program = await this.props.storage.methods.usersProgram(this.props.accounts[0]).call();
+    let ammount = await this.props.storage.methods.usersAmount(this.props.accounts[0]).call();
+    let typeProgram;
+    if(program == 1){
+      typeProgram = "年";
+    } else{
+      typeProgram = "月";      
+    }
+
+    this.setState({
+      type: typeProgram,
+      ammount: ammount,
+      program: program,
+    });
   };
 
   setInputDevice = () => {
@@ -56,6 +75,17 @@ class VideoInput extends Component {
 
   componentWillUnmount() {
     clearInterval(this.interval);
+  };
+
+  arraysEqual(a, b) {
+    if (a === b) return true;
+    if (a === null || b === null) return false;
+    if (a.length !== b.length) return false;
+
+    for (var i = 0; i < a.length; ++i) {
+      if (a[i] !== b[i]) return false;
+    }
+    return true;
   }
 
   capture = async () => {
@@ -77,19 +107,85 @@ class VideoInput extends Component {
           this.state.faceMatcher.findBestMatch(descriptor)
         );
         this.setState({ match });
+      }    
+
+      const { accounts, storage, face, insuranceUser } = this.props;
+      let newDescriptor = []
+
+      // 比對合約上和資料庫中，同個人的臉是不是一樣的
+      if(this.state.descriptors.length!==0 ){
+        const nn = this.state.match[0]._label;
+        const id = nn.slice(nn.indexOf("@")+1,);
+
+        var foundfaceId = insuranceUser[0]
+
+        if(foundfaceId == undefined ||
+           foundfaceId[id] == undefined || 
+           this.state.match[0]._label == "unknown"
+        ){
+          this.setState({
+            condition: "不是本人喔",
+            realPerson: "none",
+          });
+          return
+        }
+
+        if(foundfaceId[id].faceID!=undefined){
+          const facee = foundfaceId[id].faceID[0];
+          
+          facee.forEach(function(ele,idx){
+            newDescriptor.push(parseInt(ele*1000).toString());
+          });
+          const d = await face.methods.getUserFace(accounts[0]).call();
+
+          if(this.arraysEqual(newDescriptor,d)){
+            this.setState({ 
+              condition: "是本人，可以領取年金！",
+              realPerson: "inline-block",
+            });
+          }else{
+            this.setState({
+              condition: "不是本人喔！",
+              realPerson: "none",
+            });
+          }
+        }
+      } else {
+        this.setState({
+          condition: "沒有人喔！",
+          realPerson: "none",
+        });        
       }
     }
   };
 
-  getAnnuity = async () => {
-    const {match} =this.state;
+
+  getAnnuityAnnual = async () => {
+    const {match} = this.state;
+    const account = this.props.accounts[0];
     if(!!match && !!match[0]){
-      console.log(this.state.match[0]._label);
-      await this.props.annuity.methods.payAnnuity().send({
-        from: this.props.accounts[0]
+      await this.props.annuity.methods.companyPayAnnual(account).send({
+        from: account
       });
     }
+  };
 
+  getAnnuityMonthly = async () => {
+    const {match} = this.state;
+    const account = this.props.accounts[0];
+    if(!!match && !!match[0]){
+      await this.props.annuity.methods.companyPayAnnual(account).send({
+        from: account
+      });
+    }
+  };
+
+  getAnnuityBasic = async () => {
+    const {match} = this.state;
+    const account = this.props.accounts[0];
+    await this.props.annuity.methods.companyPayBasic(account).send({
+      from: account
+    });
   }
 
   render() {
@@ -140,7 +236,7 @@ class VideoInput extends Component {
                     transform: `translate(-3px,${_H}px)`
                   }}
                 >
-                  {match[i]._label}
+                  {match[i]._label.slice(0,match[i]._label.indexOf("@"))}
                 </p>
               ) : null}
             </div>
@@ -149,10 +245,28 @@ class VideoInput extends Component {
       });
     }
 
+    const programExpress = (program) => {
+      if(program == 1){
+        return ( <div></div> )
+      } else if(program == 2){
+        return ( <div></div> )
+      }
+    }
+    if(this.props.accounts[0] === "0xb5E0c34C1215C776fcf17D4244B29A739E42fa09"){
+      return (
+        <div>
+          <h2>請您領取年金保險</h2>
+          <input type="button" onClick={this.getAnnuityBasic} value="領取年金保險" />          
+        </div>
+      )
+    }
     return (
       <div className="Camera">
-        <h2>透過臉部辨識，領取年金保險</h2>
-        <p>Camera: {camera}</p>
+        <h2>請您透過臉部辨識，領取年金保險</h2>
+        <p style={{display:'none'}}>Camera: {camera}</p>
+        <div>{programExpress(this.state.program)}</div>
+        <p>您選擇的方案是 {this.state.type}領年金 1000元，購買 {this.state.ammount} 份，每{this.state.type}可以領取 {this.state.ammount * 1000 } 元</p>
+
         <div style={{ width: WIDTH, height: HEIGHT }}>
           <div style={{ position: 'relative', width: WIDTH }}>
             {!!videoConstraints ? (
@@ -171,7 +285,8 @@ class VideoInput extends Component {
           </div>
         </div>
         <div>
-          <input type="button" onClick={this.getAnnuity} value="領取年金保險" />
+          <div>{this.state.condition}</div>
+          <input style={{display:this.state.realPerson}} type="button" onClick={this.getAnnuityAnnual} value="領取年金保險" />
         </div>
       </div>
     );

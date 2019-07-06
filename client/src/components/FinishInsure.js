@@ -3,8 +3,7 @@ import { withRouter } from 'react-router-dom';
 
 class FinishInsure extends Component {
   gameOver = async() => {
-    console.log("hi");
-    await this.props.annuity.methods.checkUserNotLive().send({ from: this.props.accounts[0] });;
+    await this.props.annuity.methods.userGone(this.props.accounts[0]).send({ from: this.props.accounts[0] });;
   }
 
   render() {

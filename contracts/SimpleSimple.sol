@@ -1,7 +1,7 @@
 pragma solidity ^0.4.25;
 
 contract SimpleSimple {
-  string public c = "嘻哈了喔";
+  string public c = "SOS";
 
   event cSet(string _word);
 

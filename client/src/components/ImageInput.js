@@ -4,12 +4,12 @@ import { loadModels, getFullFaceDescription, createMatcher } from '../api/face';
 
 // Import face profile & test picture
 const JSON_PROFILE = require('../descriptors/faceData.json');
-const testImg = require('../img/test.jpg');
+// const testImg = require('../img/test.jpg');
 const JSON_API = 'http://localhost:3001/faceId';
 
 // Initial State
 const INIT_STATE = {
-  imageURL: testImg, //null,
+  imageURL: null,
   fullDesc: null,
   detections: null,
   descriptors: null,
@@ -30,7 +30,7 @@ class ImageInput extends Component {
   componentWillMount = async () => {
     await loadModels();
     this.setState({ faceMatcher: await createMatcher(JSON_PROFILE['faceId']) });
-    await this.handleImage(this.state.imageURL);
+    // await this.handleImage(this.state.imageURL);
   };
 
   handleImage = async (image = this.state.imageURL) => {
@@ -53,7 +53,7 @@ class ImageInput extends Component {
   };
 
   handleFileChange = async event => {
-    this.resetState();
+    // this.resetState();
     await this.setState({
       imageURL: URL.createObjectURL(event.target.files[0]),
       loading: true
@@ -92,25 +92,38 @@ class ImageInput extends Component {
   // 有修改空間，有空再研究
   // 1. 改成使用資料庫儲存
   // 2. 一個人好像可以存好幾個臉的陣列，但是目前只存一種
-  clickAddUserPicButton = async (event) => {
+  clicksetPicture = async (event) => {
     let descriptorA = this.state.fullDesc[0].descriptor;
     let descriptor = [];
 
     for (let i = 0; i < descriptorA.length; ++i){
       descriptor[i] = descriptorA[i];
     }
+    let descriptor2 = [];
+    this.setState({ descriptor: descriptor });
 
-    let userID = this.state.userId;
+    descriptor.forEach(function(ele,idx){
+      descriptor2[idx] = parseInt(ele*1000);
+    });
+
+    await this.props.face.methods.setUserFace(
+      this.props.accounts[0],
+      descriptor2
+    ).send({ from: this.props.accounts[0] });
+  };
+
+  clickAddUserPicButton = async () => {
+    let userId = this.state.userId;
     let newData = {}
-    newData[userID] = {
+    newData[userId] = {
       "name": this.state.userName,
-      "descriptors": [descriptor],
+      "descriptors": [this.state.descriptor],
     }
 
     const data = await fetch(JSON_API).then(
       response => response.json()
     );
-    data[userID] = newData[userID];
+    data[userId] = newData[userId];
 
     fetch(JSON_API, {
         method: 'POST',
@@ -118,14 +131,17 @@ class ImageInput extends Component {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(data)
-    })
+    });
 
+    const name = this.props.web3.utils.asciiToHex(this.state.userName);
+    const id = this.props.web3.utils.asciiToHex(this.state.userId);
     await this.props.annuity.methods.setuserData(
-      this.state.userName,
       this.state.userAddress,
-      this.state.userBirth
+      name,
+      id,
+      parseInt(this.state.userBirth)
     ).send({ from: this.props.accounts[0] });
-  };
+  }
 
   render() {
     const { imageURL, detections, match } = this.state;
@@ -170,7 +186,7 @@ class ImageInput extends Component {
                     transform: `translate(-3px,${_H}px)`
                   }}
                 >
-                  {match[i]._label}
+                  {match[i]._label.slice(0,match[i]._label.indexOf("@"))}
                 </p>
               ) : null}
             </div>
@@ -181,32 +197,21 @@ class ImageInput extends Component {
 
     return (
       <div>
-        <h3>Step 1: 輸入基本資料</h3>
-        使用者姓名：
-        <input type="text" value={this.state.userName} 
-               onChange={this.handleNameChange} />
-        <br/>
-        使用者位址：
-        <input type="text" value={this.state.userAddress} 
-               onChange={this.handleuserAddressChange} />
-        <br/>
-        身份證字號：
-        <input type="text" value={this.state.userID} 
-               onChange={this.handleuserIDChange} />
-        <br/>
-        出生年月日：
-        <input type="text" value={this.state.userBirth} 
-               onChange={this.handleuserBirthChange} />
-        <br/>
-        照片：<input id="myFileUpload" type="file" onChange={this.handleFileChange} accept=".jpg, .jpeg, .png" />
-        <br/>
+        <h1>請被保人輸入基本資料</h1>
+        使用者姓名：<input type="text" value={this.state.userName} onChange={this.handleNameChange} /><br/>
+        使用者位址：<input type="text" value={this.state.userAddress} onChange={this.handleuserAddressChange} /><br/>
+        身份證字號：<input type="text" value={this.state.userID} onChange={this.handleuserIDChange} /><br/>
+        出生年月日：<input type="text" value={this.state.userBirth} onChange={this.handleuserBirthChange} /><br/>
+        照片：     <input id="myFileUpload" type="file" onChange={this.handleFileChange} accept=".jpg, .jpeg, .png" /><br/>
+        <input type="button" value="上傳照片" onClick={this.clicksetPicture}/>
+
         <input type="button" value="確認" onClick={this.clickAddUserPicButton}/>
 
         <div style={{ position: 'relative', 'marginTop': '20px'}}>
           <div style={{ position: 'absolute' }}>
             <img onLoad={this.onImgLoad} 
                  src={imageURL}
-                 alt="imageURL"
+                 alt=""
                  style={style.userPictureWidth}/>
           </div>
           {!!drawBox ? drawBox : null}

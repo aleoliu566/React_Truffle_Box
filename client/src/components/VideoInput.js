@@ -252,7 +252,7 @@ class VideoInput extends Component {
         return ( <div></div> )
       }
     }
-    if(this.props.accounts[0] === "0xb5E0c34C1215C776fcf17D4244B29A739E42fa09"){
+    if(this.props.accounts[0] === ""){
       return (
         <div>
           <h2>請您領取年金保險</h2>

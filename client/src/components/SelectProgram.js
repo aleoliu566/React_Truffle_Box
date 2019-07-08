@@ -81,7 +81,7 @@ class SelectProgram extends Component {
 
   render() {
 
-    if(this.props.accounts[0] === "0xb5E0c34C1215C776fcf17D4244B29A739E42fa09"){
+    if(this.props.accounts[0] === ""){
       return (
         <div>
           <h1>請選擇年金保險的方案</h1>

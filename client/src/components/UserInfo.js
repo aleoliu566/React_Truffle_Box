@@ -43,7 +43,7 @@ class UserInfo extends Component {
                 return val ? <span>活著</span> : <span>死亡</span>
               }
               const programType = (val, addr) => {
-                if(addr === "0xb5E0c34C1215C776fcf17D4244B29A739E42fa09"){
+                if(addr === ""){
                   return (<span>{val}</span>)
                 }
                 if(val==1){
@@ -54,7 +54,7 @@ class UserInfo extends Component {
               }
 
               const ss = (val, addr) => {
-                if(addr === "0xb5E0c34C1215C776fcf17D4244B29A739E42fa09"){
+                if(addr === ""){
                   return (<span>1</span>)
                 }
                 return(<span>{val}</span>)
